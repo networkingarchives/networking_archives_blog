@@ -1,5 +1,6 @@
 baseurl: https://networkingarchives.github.io/networking_archives_blog/
 languageCode: en-us
+publishdir: ../myblog
 title: Networking Archives Blog
 theme: hugo-lithium
 googleAnalytics: ''
