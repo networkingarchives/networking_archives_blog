@@ -1,4 +1,4 @@
-baseurl: https://networkingarchives.github.io/networking_archives_blog/
+baseurl: https://networkingarchives.github.io/blog/
 languageCode: en-us
 publishdir: ../myblog
 title: Networking Archives Blog
