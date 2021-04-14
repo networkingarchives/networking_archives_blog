@@ -1,7 +1,8 @@
 baseurl: /
 languageCode: en-us
-title: A Hugo website
+title: Networking Archives Blog
 theme: hugo-lithium
+baseurl: https://networkingarchives.github.io/networking_archives_blog/
 googleAnalytics: ''
 disqusShortname: ''
 ignoreFiles:
