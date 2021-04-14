@@ -1,0 +1,130 @@
+---
+title: Word Vectors
+author: Yann
+date: '2021-04-14'
+slug: word-vectors
+categories: []
+tags: []
+---
+
+One way we can represent text in a way that a machine can interpret is with a *word vector.* A word vector is simply a numerical representation of a word within a corpus (a body of text, often a series of documents), usually consisting of a series of numbers in a specified sequence. This type of representation is used for a variety of Natural Language Processing tasks - for instance measuring the similarity between two documents. This post will show how with a couple of R packages and a method for creating word vectors with a neural net, called GloVe, we can produce a series of vectors which give useful clues as to the semantic links between words in a corpus.
+
+### What is a Word Vector, Then?
+
+Imagine you have two documents in a corpus. One of them is an article about pets, and the other is a piece of fiction about a team of crime fighting animal superheroes. We'll call them document A and document B. One way to represent the words within these documents as a vector would be to use the counts of each word per document.
+
+To do this, you could give each word a set of coordinates, $x$ and $y$, where $x$ is a count of how many times the word appears in document A and $y$ the number of times it appears in document B.
+
+The first step is to make a dataframe with the relevant counts:
+
+```{r message=FALSE, warning=FALSE, fig.height=5, fig.width=5}
+library(ggrepel)
+library(tidyverse)
+word_vectors = tibble(word = c('crufts', 'feed', 'cat', 'dog', 'mouse', 'rabbit', 'cape', 'hero' ),
+      x = c(10, 8, 6, 5, 6, 5, 2, 1),
+      y = c(0, 1, 3, 5, 8, 8, 10, 9))
+
+word_vectors
+```
+
+This data can be represented as a two-dimensional plot where each word is placed on the x and y axes based on their x and y values, like this:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+ggplot() + 
+  geom_point(data = word_vectors, aes(x, y), size =4, alpha = .7) + 
+  geom_text_repel(data = word_vectors, aes(x, y, label = word)) + 
+  theme_bw() + 
+  labs(title = "Words Represented in Two-dimension Space") + 
+  theme(title = element_text(face = 'bold')) + 
+  scale_x_continuous(breaks = 1:10) + 
+  scale_y_continuous(breaks = 1:10)
+```
+
+Each word is represented as a *vector* of length 2: 'rabbit' is a vector containing two numbers: {5,8}, for example. Using very basic maths we can calculate the *euclidean* *distance* between any pair of words. More or less the only thing I can remember from secondary school math is how to calculate the distance between two points on a graph, using the following formula:
+
+$$
+\sqrt {\left( {x_1 - x_2 } \right)^2 + \left( {y_1 - y_2 } \right)^2 }
+$$
+
+Where $x$ is the first point and $y$ the second. This can easily be turned into a function in R, which takes a set of coordinates (the arguments x1 and x2) and returns the euclidean distance:
+
+```{r}
+euc.dist <- function(x1, x2) sqrt(sum((pointA - pointB) ^ 2))
+```
+
+To get the distance between 'crufts' and 'mouse', set pointA as the $x$ and $y$ ccoordinates for the first entry in the dataframe of coordinates we created above, and pointB the coordinates for the fifth entry:
+
+```{r}
+pointA = c(word_vectors$x[1], word_vectors$y[1])
+pointB = c(word_vectors$x[5], word_vectors$y[5])
+
+euc.dist(pointA, pointB)
+
+```
+
+Representing a pair of words as vectors and measuring the distance between them is commonly used to suggest a semantic link between the two. For instance, the distance between 'hero' and 'cape' in this corpus is small, because they have similar properties: they both occur mostly in the document about superheroes and rarely in the document about pets.
+
+```{r}
+pointA = c(word_vectors$x[word_vectors$word == 'hero'], word_vectors$y[word_vectors$word == 'hero'])
+
+pointB = c(word_vectors$x[word_vectors$word == 'cape'], word_vectors$y[word_vectors$word == 'cape'])
+
+euc.dist(pointA, pointB)
+```
+
+This suggests that the model has 'learned' that in this corpus, hero and cape are semantically more closely linked than other pairs in the dataset. The difference between 'cape' and 'feed', on the other hand, is large, because one appears often in the superheroes article and rarely in the other, and vice versa.
+
+```{r}
+pointA = c(word_vectors$x[word_vectors$word == 'cape'], word_vectors$y[word_vectors$word == 'cape'])
+
+pointB = c(word_vectors$x[word_vectors$word == 'feed'], word_vectors$y[word_vectors$word == 'feed'])
+
+euc.dist(pointA, pointB)
+```
+
+### Adding more dimensions 
+If we had a third document, we could add that in as an extra dimension.
+
+```{r}
+word_vectors_3d = tibble(word = c('crufts', 'feed', 'cat', 'dog', 'mouse', 'rabbit', 'cape', 'hero' ),
+      x = c(10, 8, 6, 5, 6, 5, 2, 1),
+      y = c(0, 1, 3, 5, 8, 8, 10, 9),
+      z = c(1,3,5,2,7,8,4,3))
+```
+
+Just like the plot above, we can plot the words in three dimensions, using [Plotly](https://plotly.com/r/) (by the way I'm so happy I actually get to use a '3d interactive scatter plot' in an appropriate setting at least once in my life)
+
+```{r message=FALSE, warning=FALSE}
+library(plotly)
+
+plot_ly(data = word_vectors_3d, x =  ~x, y = ~y,z =  ~z, text = ~word) %>% add_markers()
+```
+
+You can start to understand how the words now cluster together in the 3D plot: rabbit and mouse are clustered together, but now in the third dimension they are further away from dog. We can use the same formula as above to calculate these distances, just by adding the z coordinates to the pointA and pointB vectors:
+
+```{r}
+pointA = c(word_vectors$x[word_vectors$word == 'dog'], word_vectors$y[word_vectors$word == 'dog'], word_vectors$z[word_vectors$word == 'dog'])
+pointB = c(word_vectors$x[word_vectors$word == 'mouse'], word_vectors$y[word_vectors$word == 'mouse'], word_vectors$z[word_vectors$word == 'mouse'])
+
+euc.dist(pointA, pointB)
+```
+
+The nice thing about the method is that while my brain starts to hurt when I think about more than three dimensions, the maths behind it doesn't care: you can just keep plugging in longer and longer vectors and it'll continue to calculate the distances as long as they are the same length. This means you can use this same formula not just when you have x and y coordinates, but also z, a, b, c, d, and so on for as long as you like. This is often called 'representing words in multi-dimensional euclidean space', or something similar which sounds great on grant applications but it's really just doing some plotting and measuring distances. Which means that if you represent all the words in a corpus as a long vector (series of coordinates), you can quickly measure the distance between any two.
+
+In a large corpus with a properly-constructed vector representation, the semantic relationships between the words start to make a lot of sense. What's more, because of vector math, you can add, subtract, divide and multiply the words together to get new vectors, and then find the closest to that. Here, we create a new vector, which is pointA - pointB (dog - mouse). Then loop through each vector and calculate the distance in a new dataframe:
+
+```{r}
+pointC = pointA - pointB
+
+df_for_results = tibble()
+for(i in 1:8){
+  
+  pointA = c(word_vectors$x[i], word_vectors$y[i], word_vectors$z[i])
+  u = tibble(dist = euc.dist(pointC, pointA), word = word_vectors$word[i])
+  df_for_results = rbind(df_for_results, u)
+}
+
+df_for_results %>% arrange(dist)
+```
+
+The closest to dog - mouse is hero, with this vector representation.
